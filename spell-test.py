@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import argparse
 import json
 import os
 
@@ -32,18 +33,23 @@ def read_stats(filepath="my_spelling_stats.json"):
         return json.load(file_handle)
 
 
-def test_words(sentences, stats):
+def test_words(sentences, stats, num_words=0):
     print("Type the missing word for each sentence, or 'exit' when "
         "you've had enough:")
 
+    wrong_words = []
 
+    count = 0
     for word in order_words(sentences.keys(), stats):
+        if num_words and count == num_words:
+            return wrong_words
+
         sentence = sentences[word]
         print(sentence)
         typed_word = raw_input()
 
         if typed_word == "exit":
-            exit(0)
+            return wrong_words
 
         word_stat = stats.get(word, dict(DEFAULT_STATISTIC))
         word_stat["total_count"] += 1
@@ -53,22 +59,39 @@ def test_words(sentences, stats):
             word_stat["right_count"] += 1
         else:
             print("Needs practise, the correct spelling is '{}'.".format(word))
+            wrong_words.append(word)
 
         stats[word] = word_stat
+        count += 1
         print("You've spelled '{}' correctly {} times out of {}.".format(
             word, word_stat["right_count"], word_stat["total_count"]))
 
 
         print("")
 
+    return wrong_words
+
 
 sentences = read_sentences("words.txt")
 
 stats = read_stats()
 
+parser = argparse.ArgumentParser(description="Test your spelling!")
+parser.add_argument('num_words', type=int, default=10)
+
+args = parser.parse_args()
+
+wrong_words = []
 
 try:
-    test_words(sentences, stats)
+    wrong_words = test_words(sentences, stats, num_words=args.num_words)
 finally:
-    print("Saving your spelling statistics... thanks for playing!")
     write_stats(stats)
+    if wrong_words:
+        print("Here are the words you need to work on from this game:")
+        for word in wrong_words:
+            print("{word}: {sentence}".format(word=word, sentence=sentences[word]))
+    else:
+        print("Wow - no mistakes! Well done :D\n")
+
+    print("Thanks for playing!")
